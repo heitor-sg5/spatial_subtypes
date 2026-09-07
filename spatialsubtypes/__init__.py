@@ -1,4 +1,4 @@
-from .augment import augment_features, sweep_lambda
+from .augment import augment_features
 from .cluster import cluster_leiden
 from .graph import build_spatial_graph
 from .pipeline import find_spatial_subtypes
