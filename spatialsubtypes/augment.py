@@ -24,7 +24,7 @@ def _get_expression_matrix(adata: AnnData, layer: str | None, use_hvg: bool) -> 
                 "(e.g. scanpy.pp.highly_variable_genes) before augment_features, "
                 "or pass use_hvg=False to use all genes."
             )
-        # Subset to HVGs before any further processing, to save memory and speed.
+        # Subset to HVGs before any further processing
         X = X[:, adata.var["highly_variable"].to_numpy()]
     if sp.issparse(X):
         X = X.toarray()
@@ -120,18 +120,24 @@ def augment_features(
                 f"radius/n_neighbors if this affects a large fraction of cells.",
                 stacklevel=2,
             )
-
-    # Neighbor aggregation always uses the FULL TISSUE graph.
-    neighbor_mean_full = W_norm @ own_full
-    neighbor_mean_full[isolated_full] = own_full[isolated_full]  # fallback for isolated cells
-
-    # Now restrict to the target population for everything downstream.
+    # Subset to target cells for the neighbor aggregation step
     if target_mask is not None:
         own = own_full[target_mask]
-        neighbor_mean = neighbor_mean_full[target_mask]
+        W_rows = W_norm[target_mask]
+        used_cols = np.unique(W_rows.indices) # only keep columns that are actually used in the target rows
+        if len(used_cols) < W_rows.shape[1]:
+            W_rows = W_rows[:, used_cols]
+            own_for_matmul = own_full[used_cols]
+        else:
+            own_for_matmul = own_full
+
+        neighbor_mean = W_rows @ own_for_matmul
+        isolated_target = isolated_full[target_mask]
+        neighbor_mean[isolated_target] = own[isolated_target]
     else:
         own = own_full
-        neighbor_mean = neighbor_mean_full
+        neighbor_mean = W_norm @ own_full
+        neighbor_mean[isolated_full] = own_full[isolated_full]
 
     scaler = StandardScaler()
     own_scaled = scaler.fit_transform(own)
@@ -139,11 +145,16 @@ def augment_features(
 
     if include_gradient:
         # Weighted within-neighborhood variance per gene: E[(x_j - nbr_mean_i)^2 | j in N(i)]
-        sq_diff_full = W_norm @ (own_full**2) - neighbor_mean_full**2
-        sq_diff_full = np.clip(sq_diff_full, a_min=0.0, a_max=None)  # guard float error
-        gradient_full = np.sqrt(sq_diff_full)
-        gradient_full[isolated_full] = 0.0
-        gradient = gradient_full[target_mask] if target_mask is not None else gradient_full
+        if target_mask is not None:
+            sq_diff = (W_rows @ (own_for_matmul**2)) - neighbor_mean**2
+            sq_diff = np.clip(sq_diff, a_min=0.0, a_max=None)  # guard float error
+            gradient = np.sqrt(sq_diff)
+            gradient[isolated_target] = 0.0
+        else:
+            sq_diff_full = (W_norm @ (own_full**2)) - neighbor_mean**2
+            sq_diff_full = np.clip(sq_diff_full, a_min=0.0, a_max=None)
+            gradient = np.sqrt(sq_diff_full)
+            gradient[isolated_full] = 0.0
         gradient_scaled = StandardScaler().fit_transform(gradient)
 
         own_w = np.sqrt(1 - lam)
@@ -164,7 +175,7 @@ def augment_features(
     if target_mask is None:
         adata.obsm[f"X_{key_added}_pca"] = X_pca
     else:
-        # Store the PCA output in adata.obsm with NaN padding for non-target rows.
+        # Store the PCA output in the full-tissue AnnData, with NaN padding for non-target cells. 
         full_pca = np.full((adata.n_obs, X_pca.shape[1]), np.nan, dtype=np.float32)
         full_pca[target_mask] = X_pca
         adata.obsm[f"X_{key_added}_pca"] = full_pca

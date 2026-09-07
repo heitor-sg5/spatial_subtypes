@@ -1,15 +1,17 @@
 """
 Part 3 — Leiden clustering.
 
-Takes an embedding, returns labels. If augment_features was called with 
+Takes an embedding, returns labels. If augment_features was called with
 target_mask, pass the already-subsetted X_pca returned by that function.
 """
 
 from __future__ import annotations
 
+import igraph as ig
+import leidenalg
 import numpy as np
-import scanpy as sc
 from anndata import AnnData
+from sklearn.neighbors import kneighbors_graph
 
 def cluster_leiden(
     X: np.ndarray,
@@ -21,13 +23,14 @@ def cluster_leiden(
     target_mask: np.ndarray | None = None,
 ) -> np.ndarray:
     """
-    Standard kNN graph + Leiden clustering.
+    kNN graph (built via sklearn) + Leiden clustering (via
+    leidenalg/igraph directly).
 
     Parameters
     X : np.ndarray, shape (n_cells, n_components)
-        Embedding to cluster on (already restricted to target cells). 
-        Must not contain NaNs;  slice the full-length obsm array 
-        with target mask before calling (`X_full[target_mask]`) or 
+        Embedding to cluster on (already restricted to target cells).
+        Must not contain NaNs; slice the full-length obsm array
+        with target mask before calling (`X_full[target_mask]`) or
         just use the array `augment_features` already returned directly.
     resolution : float
         Leiden resolution parameter. Higher = more, smaller clusters.
@@ -35,11 +38,11 @@ def cluster_leiden(
         Number of neighbors for the expression-space kNN graph Leiden
         runs on.
     random_state : int
-        For reproducibility of both the kNN graph and Leiden.
+        For reproducibility of Leiden's optimization.
     key_added : str, optional
         If `adata_out` is also given, results are additionally written
         to `adata_out.obs[key_added]` (respecting `target_mask` if set,
-        i.e. non-target cells get NaN rather than a spurious label).
+        i.e. non-target cells get "NA" rather than a spurious label).
     adata_out : AnnData, optional
         Convenience: if provided along with `key_added`, cluster labels
         are written back onto this object's `.obs`.
@@ -59,20 +62,26 @@ def cluster_leiden(
             "subsetted) rather than the full-length adata.obsm entry."
         )
 
-    tmp = AnnData(X=np.zeros((X.shape[0], 1)))  # scanpy needs an AnnData shell
-    tmp.obsm["X_input"] = X
-    sc.pp.neighbors(tmp, use_rep="X_input", n_neighbors=n_neighbors, random_state=random_state)
-    sc.tl.leiden(
-        tmp,
-        resolution=resolution,
-        random_state=random_state,
-        key_added="leiden",
-        flavor="igraph",
-        n_iterations=2,
-        directed=False,
-    )
+    n_cells = X.shape[0]
+    k = min(n_neighbors, n_cells - 1)
 
-    labels = tmp.obs["leiden"].to_numpy().astype(str)
+    # Exact kNN via sklearn
+    knn = kneighbors_graph(X, n_neighbors=k, mode="connectivity", include_self=False)
+    knn = knn.maximum(knn.T) # symmetrize
+
+    rows, cols = knn.nonzero()
+    undirected_mask = rows < cols  # dedupe symmetric pairs into single edges
+    edges = list(zip(rows[undirected_mask].tolist(), cols[undirected_mask].tolist()))
+
+    g = ig.Graph(n=n_cells, edges=edges)
+
+    partition = leidenalg.find_partition(
+        g,
+        leidenalg.RBConfigurationVertexPartition,
+        resolution_parameter=resolution,
+        seed=random_state,
+    )
+    labels = np.array([str(c) for c in partition.membership])
 
     if adata_out is not None and key_added is not None:
         col = np.full(adata_out.n_obs, "NA", dtype=object)

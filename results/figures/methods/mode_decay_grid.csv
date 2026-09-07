@@ -1,0 +1,10 @@
+mode,decay,n_clusters,ari,coverage
+radius,None,35,0.16370157929075474,1.0
+radius,gaussian,28,0.2054774157117016,1.0
+radius,exponential,29,0.1976711169948693,1.0
+knn,None,15,0.4358343065338869,1.0
+knn,gaussian,19,0.4382771581710021,1.0
+knn,exponential,15,0.4377868406531435,1.0
+delaunay,None,13,0.43892689740736496,1.0
+delaunay,gaussian,17,0.4395363030257417,1.0
+delaunay,exponential,17,0.44296074746037184,1.0

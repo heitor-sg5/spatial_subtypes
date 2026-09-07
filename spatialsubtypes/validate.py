@@ -23,7 +23,6 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
-from scipy.spatial.distance import cdist
 
 def restrict_to_target(W: sp.csr_matrix, target_mask: np.ndarray) -> sp.csr_matrix:
     """

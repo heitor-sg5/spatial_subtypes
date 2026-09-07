@@ -21,9 +21,30 @@ FIGURES_ROOT = os.path.join(REPO_ROOT, "results", "figures")
 # ---- Fixed data conventions ----
 SPATIAL_KEY = "spatial_um"
 CELL_TYPE_KEY = "DeconvolutionLabel1"
-CELL_TYPE_CLASS = "DeconvolutionClass"
 TARGET_TYPE = "Macrophage"
+PERIPHERY_KEY = "Periphery"
+PERIPHERY_VALUE = "50 micron"
 GROUND_TRUTH_KEY = "MacrophageSubtype"
+
+def get_target_mask(adata) -> np.ndarray:
+    """
+    Boolean mask for the target macrophage population, requiring BOTH:
+      - CELL_TYPE_KEY == TARGET_TYPE (Macrophage cell-type call)
+      - PERIPHERY_KEY == PERIPHERY_VALUE (restricts to the 50um tumor
+        periphery, matching the scope of Oliveira et al.'s
+        MacrophageSubtype ground truth 
+    """
+    is_macrophage = adata.obs[CELL_TYPE_KEY] == TARGET_TYPE
+    is_periphery = adata.obs[PERIPHERY_KEY] == PERIPHERY_VALUE
+    mask = (is_macrophage & is_periphery).to_numpy()
+    if mask.sum() == 0:
+        raise ValueError(
+            f"get_target_mask selected 0 cells. Check that PERIPHERY_VALUE="
+            f"{PERIPHERY_VALUE!r} matches an actual category in "
+            f"adata.obs['{PERIPHERY_KEY}'] -- run "
+            f"adata.obs['{PERIPHERY_KEY}'].value_counts() to check."
+        )
+    return mask
 
 def load_full_tissue():
     """
