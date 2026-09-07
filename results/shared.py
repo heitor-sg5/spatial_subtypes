@@ -20,7 +20,8 @@ FIGURES_ROOT = os.path.join(REPO_ROOT, "results", "figures")
 
 # ---- Fixed data conventions ----
 SPATIAL_KEY = "spatial_um"
-CELL_TYPE_KEY = "DeconvolutionLabel2"
+CELL_TYPE_KEY = "DeconvolutionLabel1"
+CELL_TYPE_CLASS = "DeconvolutionClass"
 TARGET_TYPE = "Macrophage"
 GROUND_TRUTH_KEY = "MacrophageSubtype"
 

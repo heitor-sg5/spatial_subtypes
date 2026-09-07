@@ -17,9 +17,6 @@ from sklearn.preprocessing import StandardScaler
 
 def _get_expression_matrix(adata: AnnData, layer: str | None, use_hvg: bool) -> np.ndarray:
     X = adata.layers[layer] if layer is not None else adata.X
-    if sp.issparse(X):
-        X = X.toarray()
-    X = np.asarray(X, dtype=np.float64)
     if use_hvg:
         if "highly_variable" not in adata.var:
             raise KeyError(
@@ -27,7 +24,11 @@ def _get_expression_matrix(adata: AnnData, layer: str | None, use_hvg: bool) -> 
                 "(e.g. scanpy.pp.highly_variable_genes) before augment_features, "
                 "or pass use_hvg=False to use all genes."
             )
+        # Subset to HVGs before any further processing, to save memory and speed.
         X = X[:, adata.var["highly_variable"].to_numpy()]
+    if sp.issparse(X):
+        X = X.toarray()
+    X = np.asarray(X, dtype=np.float32)
     return X
 
 def _row_normalize(W: sp.csr_matrix) -> tuple[sp.csr_matrix, np.ndarray]:
@@ -89,10 +90,12 @@ def augment_features(
     random_state : int
         PCA random state.
     key_added : str
-        Results stored at `adata.obsm[f"X_{key_added}"]` (raw concatenated,
-        scaled feature blocks) and `adata.obsm[f"X_{key_added}_pca"]`
-        (final PCs). If `target_mask` is set, these are stored only for 
-        the target subset.
+        The PCA output is stored at `adata.obsm[f"X_{key_added}_pca"]`
+        (rows outside `target_mask` are NaN-padded). Note: only the
+        final PCA embedding is stored, NOT the raw concatenated
+        feature blocks -- storing those at full-tissue scale is
+        expensive for no benefit, since nothing downstream reads them
+        back (use this function's return value, X_pca, directly).
     target_mask : np.ndarray of bool, shape (n_cells,), optional
         Marks which cells to compute output embeddings for (e.g. the
         cell type being subtyped). IMPORTANT: `adata` and `W` should
@@ -159,15 +162,11 @@ def augment_features(
     X_pca = pca.fit_transform(X_concat)
 
     if target_mask is None:
-        adata.obsm[f"X_{key_added}"] = X_concat
         adata.obsm[f"X_{key_added}_pca"] = X_pca
     else:
-        # obsm arrays must span n_obs of the full adata; fill non-target rows with NaN
-        full_concat = np.full((adata.n_obs, X_concat.shape[1]), np.nan)
-        full_pca = np.full((adata.n_obs, X_pca.shape[1]), np.nan)
-        full_concat[target_mask] = X_concat
+        # Store the PCA output in adata.obsm with NaN padding for non-target rows.
+        full_pca = np.full((adata.n_obs, X_pca.shape[1]), np.nan, dtype=np.float32)
         full_pca[target_mask] = X_pca
-        adata.obsm[f"X_{key_added}"] = full_concat
         adata.obsm[f"X_{key_added}_pca"] = full_pca
 
     adata.uns[f"{key_added}_params"] = {
