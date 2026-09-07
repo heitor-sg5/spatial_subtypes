@@ -2,6 +2,8 @@
 Tests for augment.py over the FULL TISSUE graph.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from anndata import AnnData

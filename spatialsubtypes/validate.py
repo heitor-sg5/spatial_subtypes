@@ -18,6 +18,8 @@ target-target graph. For validation specifically, mode="radius" (or a
 freshly-built target-only knn graph) is recommended.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp

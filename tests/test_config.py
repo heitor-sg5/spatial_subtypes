@@ -2,6 +2,8 @@
 Shared fixtures for the spatialsubtypes testing.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from anndata import AnnData

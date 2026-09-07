@@ -5,6 +5,8 @@ augments (fixed lam), clusters (fixed resolution), and scores
 labels against Oliveira's ground truth.
 """
 
+from __future__ import annotations
+
 import os
 
 import matplotlib.pyplot as plt

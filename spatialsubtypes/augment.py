@@ -6,6 +6,8 @@ an embedding that blends each cell's own expression with a decay
 -weighted average of its spatial neighbors' expression.
 """
 
+from __future__ import annotations
+
 import warnings
 import numpy as np
 import scipy.sparse as sp

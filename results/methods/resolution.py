@@ -2,6 +2,8 @@
 Sweeps Leiden resolution and tracks raw vs. validated cluster count.
 """
 
+from __future__ import annotations
+
 import os
 
 import matplotlib.pyplot as plt

@@ -2,6 +2,8 @@
 Tests for graph.py covering the 9 mode x decay combinations.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from anndata import AnnData

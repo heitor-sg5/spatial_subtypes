@@ -2,6 +2,8 @@
 Tests for validate.py covering the global and pairwise modes, and the drop/merge actions.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from anndata import AnnData

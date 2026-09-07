@@ -1,6 +1,9 @@
 """
 Shared utilities for results/methods/.py and results/comparison/.py.
 """
+
+from __future__ import annotations
+
 import os
 
 import matplotlib.pyplot as plt

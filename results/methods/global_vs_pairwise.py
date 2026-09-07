@@ -4,6 +4,8 @@ CSVs of results, and plots a side-by-side bar chart of -log10(p_adj)
 per cluster for each test mode.
 """
 
+from __future__ import annotations
+
 import os
 
 import matplotlib.pyplot as plt

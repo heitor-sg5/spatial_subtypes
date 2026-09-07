@@ -3,6 +3,8 @@ Sweeps lam from 0 (expression-only) to 1 (neighborhood-only) and tracks
 ARI against ground truth and validated cluster count.
 """
 
+from __future__ import annotations
+
 import os
 
 import matplotlib.pyplot as plt

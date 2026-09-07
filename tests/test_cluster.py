@@ -2,6 +2,8 @@
 Tests for cluster.py.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from sklearn.metrics import adjusted_rand_score

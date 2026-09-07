@@ -6,6 +6,8 @@ cluster_leiden, spatial_validate) remains independently callable.
 This module is a convenience wrapper, not a parallel implementation.
 """
 
+from __future__ import annotations
+
 import warnings
 import numpy as np
 from anndata import AnnData

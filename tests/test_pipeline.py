@@ -2,6 +2,8 @@
 Tests for pipeline.py covering the full find_spatial_subtypes() chain.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import pytest
 from anndata import AnnData

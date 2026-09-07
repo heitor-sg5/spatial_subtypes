@@ -6,6 +6,8 @@ Builds a weighted adjacency matrix (W) over cells based on physical
 and validate.py.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import scipy.sparse as sp
 from anndata import AnnData

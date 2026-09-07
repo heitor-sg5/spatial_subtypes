@@ -5,6 +5,8 @@ Takes an embedding, returns labels. If augment_features was called with
 target_mask, pass the already-subsetted X_pca returned by that function.
 """
 
+from __future__ import annotations
+
 import numpy as np
 import scanpy as sc
 from anndata import AnnData
