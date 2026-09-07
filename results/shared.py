@@ -37,13 +37,6 @@ def get_target_mask(adata) -> np.ndarray:
     is_macrophage = adata.obs[CELL_TYPE_KEY] == TARGET_TYPE
     is_periphery = adata.obs[PERIPHERY_KEY] == PERIPHERY_VALUE
     mask = (is_macrophage & is_periphery).to_numpy()
-    if mask.sum() == 0:
-        raise ValueError(
-            f"get_target_mask selected 0 cells. Check that PERIPHERY_VALUE="
-            f"{PERIPHERY_VALUE!r} matches an actual category in "
-            f"adata.obs['{PERIPHERY_KEY}'] -- run "
-            f"adata.obs['{PERIPHERY_KEY}'].value_counts() to check."
-        )
     return mask
 
 def load_full_tissue():

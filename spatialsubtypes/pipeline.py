@@ -22,6 +22,7 @@ def find_spatial_subtypes(
     spatial_key: str = "spatial",
     cell_type_key: str | None = None,
     target_type: str | None = None,
+    target_mask: np.ndarray | None = None,
     graph_kwargs: dict | None = None,
     augment_kwargs: dict | None = None,
     cluster_kwargs: dict | None = None,
@@ -37,7 +38,7 @@ def find_spatial_subtypes(
 
     IMPORTANT: pass the FULL-TISSUE `adata` (all cell types), not a
     pre-subsetted one. Use `cell_type_key`/`target_type` to specify the
-    target population.
+    target population, OR pass a precomputed `target_mask` directly.
 
     Parameters
     adata : AnnData
@@ -48,8 +49,14 @@ def find_spatial_subtypes(
         obsm key for coordinates.
     cell_type_key, target_type : str, optional
         If both given, restricts output (not the graph) to
-        `adata.obs[cell_type_key] == target_type`. If neither is
-        given, the entire `adata` is treated as the target population.
+        `adata.obs[cell_type_key] == target_type`. Simple single-
+        equality case only -- for anything more complex (e.g. requiring
+        a second condition), compute the mask yourself and pass it via
+        `target_mask` instead.
+    target_mask : np.ndarray of bool, optional
+        A precomputed boolean mask over adata.obs_names marking the
+        target population directly. Mutually exclusive with
+        cell_type_key/target_type.
     graph_kwargs : dict, optional
         Passed to `build_spatial_graph` for the full-tissue augmentation
         graph. E.g. {"mode": "radius", "radius": 50, "decay": "gaussian"}.
@@ -90,16 +97,30 @@ def find_spatial_subtypes(
     cluster_kwargs = dict(cluster_kwargs or {})
     validate_kwargs = dict(validate_kwargs or {})
 
-    if (cell_type_key is None) != (target_type is None):
+    if target_mask is not None:
+        if cell_type_key is not None or target_type is not None:
+            raise ValueError(
+                "Provide either target_mask directly, or cell_type_key/target_type, not both."
+            )
+        target_mask = np.asarray(target_mask, dtype=bool)
+        if target_mask.shape[0] != adata.n_obs:
+            raise ValueError(
+                f"target_mask length ({target_mask.shape[0]}) does not match adata.n_obs ({adata.n_obs})"
+            )
+        if target_mask.sum() == 0:
+            raise ValueError("target_mask selects zero cells")
+
+    elif (cell_type_key is None) != (target_type is None):
         raise ValueError("cell_type_key and target_type must be given together, or not at all")
 
-    if cell_type_key is not None:
+    elif cell_type_key is not None:
         target_mask = (adata.obs[cell_type_key] == target_type).to_numpy()
         if target_mask.sum() == 0:
             raise ValueError(f"No cells found with {cell_type_key} == {target_type!r}")
+
     else:
         warnings.warn(
-            "No cell_type_key/target_type given. Treating the ENTIRE adata as the "
+            "No target_mask or cell_type_key/target_type given. Treating the ENTIRE adata as the "
             "target population. Make sure this is intentional",
             stacklevel=2,
         )
