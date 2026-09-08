@@ -17,10 +17,10 @@ from scipy.spatial import Delaunay
 def build_spatial_graph(
     adata: AnnData,
     spatial_key: str = "spatial",
-    mode: str = "radius",
-    radius: float | None = 50.0,
+    mode: str = "delaunay", 
+    radius: float | None = None,
     n_neighbors: int = 6,
-    decay: str | None = "gaussian",
+    decay: str | None = None,
     decay_scale: float | None = None,
     include_self: bool = False,
     key_added: str = "spatial",

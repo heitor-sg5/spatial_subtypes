@@ -22,7 +22,7 @@ from results.shared import (
 
 MODES = ["radius", "knn", "delaunay"]
 DECAYS = [None, "gaussian", "exponential"]
-RADIUS = 50.0
+RADIUS = 15.0
 N_NEIGHBORS = 6
 LAM = 0.3
 RESOLUTION = 1.0
