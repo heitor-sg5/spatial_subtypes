@@ -65,8 +65,6 @@ def main():
     df = pd.DataFrame(rows)
     out_dir = os.path.join(FIGURES_ROOT, "methods")
     os.makedirs(out_dir, exist_ok=True)
-    df.to_csv(os.path.join(out_dir, "lambda_sweep.csv"), index=False)
-    print("\n" + df.to_string(index=False))
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
 

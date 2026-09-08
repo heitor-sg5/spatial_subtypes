@@ -96,10 +96,6 @@ def main():
     df = pd.DataFrame(rows)
     out_dir = os.path.join(FIGURES_ROOT, "methods")
     os.makedirs(out_dir, exist_ok=True)
-    out_csv = os.path.join(out_dir, "mode_decay_grid.csv")
-    df.to_csv(out_csv, index=False)
-    print(f"\nSaved table: {out_csv}")
-    print(df.to_string(index=False))
 
     # ---- Grouped bar chart: ARI by mode, grouped by decay ----
     fig, ax = plt.subplots(figsize=(7, 4.5))
