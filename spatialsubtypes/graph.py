@@ -82,7 +82,7 @@ def build_spatial_graph(
     if decay not in {None, "gaussian", "exponential"}:
         raise ValueError(f"decay must be None, 'gaussian', or 'exponential', got {decay!r}")
 
-    # ---- Select candidate edges + raw distances ----
+    # ---- Select candidate edges + raw distances ---- 
     if mode == "radius":
         if radius is None:
             raise ValueError("radius must be set when mode='radius'")
