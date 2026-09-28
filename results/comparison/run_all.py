@@ -1,5 +1,5 @@
 """
-Run all methods (ours, plain Leiden, BANKSY) and compare their results.
+Imports and runs all comparison methods, then generates summary figures and prints ARI scores.
 """
 
 from __future__ import annotations
@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 from results.comparison.run_ours import run_ours
@@ -34,7 +35,7 @@ def main():
     results = {}
 
     print("=== Ours ===")
-    labels_ours, adata_target, eval_ours, _ = run_ours(adata, target_mask)
+    labels_ours, adata_target, eval_ours, raw_labels_ours = run_ours(adata, target_mask)
     results["Ours"] = {"labels": labels_ours, "eval": eval_ours}
     print(f"ARI={eval_ours['ari']:.3f}  coverage={eval_ours['coverage']:.2f}\n")
 
@@ -51,6 +52,13 @@ def main():
         print(f"ARI={eval_banksy['ari']:.3f}  coverage={eval_banksy['coverage']:.2f}\n")
     except ImportError as e:
         print(f"Skipping BANKSY: {e}\n")
+
+    print("=== squidpy post-hoc (descriptive, not a competing label set) ===")
+    from results.comparison.run_squidpy import run_squidpy_posthoc
+    _, zscore_df = run_squidpy_posthoc(adata_target, raw_labels_ours)
+    diag = np.diag(zscore_df.values)
+    for cat, z in zip(zscore_df.index, diag):
+        print(f"  cluster {cat}: self-enrichment z={z:.2f}")
 
     # ---- Bar chart: ARI across methods ----
     fig, ax = plt.subplots(figsize=(7, 4.5))
