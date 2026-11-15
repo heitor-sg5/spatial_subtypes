@@ -1,150 +1,81 @@
-"""
-Tests for validate.py covering the global and pairwise modes, and the drop/merge actions.
-"""
+"""Tests for validate.py."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
-from anndata import AnnData
 
-from spatialsubtypes.graph import build_spatial_graph
-from spatialsubtypes.validate import restrict_to_target, spatial_validate
+from spatialsubtypes import adjacency, build_graph, validate_subtypes
+from spatialsubtypes.validate import bh_adjust
 
-def _build_W(coords, **kwargs):
-    """
-    Helper to build a spatial graph from just coordinates.
-    """
-    adata = AnnData(X=np.zeros((len(coords), 1)), obsm={"spatial": coords})
-    return build_spatial_graph(adata, **kwargs)
 
-def test_global_positive_control(true_split_scenario):
-    """
-    Labels that match the true spatial regions should come back
-    strongly significant under the global test.
-    """
-    W = _build_W(true_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    _, stats = spatial_validate(
-        true_split_scenario["labels"], W, test_mode="global", action="flag", n_perm=1000
-    )
-    assert (stats["p_adj"] < 0.01).all()
+def _W(coords, k=8):
+    return adjacency(build_graph(coords, "knn", n_neighbors=k, symmetric=True))
 
-def test_global_negative_control(true_split_scenario):
-    """
-    Same cluster sizes, but labels randomly scrambled across the full
-    spatial extent, should not be significant under the global test.
-    """
-    rng = np.random.default_rng(42)
-    scrambled = rng.permutation(true_split_scenario["labels"])
-    W = _build_W(true_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    _, stats = spatial_validate(scrambled, W, test_mode="global", action="flag", n_perm=1000)
-    assert (stats["p_adj"] > 0.05).all()
 
-def test_global_mode_has_known_blind_spot(fake_split_scenario):
-    """
-    Under one-vs-rest null, an arbitrary split (B1/B2) confined entirely to
-    one dense spatial region comes back significant, indistinguishable
-    from the genuinely separate region (A), since both are being
-    compared against a null that includes the whole population.
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    _, stats = spatial_validate(
-        fake_split_scenario["labels"], W, test_mode="global", action="flag", n_perm=1000
-    )
-    b_rows = stats[stats["cluster"].isin(["B1", "B2"])]
-    assert (b_rows["p_adj"] < 0.05).all()
+def test_true_split_survives(true_split_scenario):
+    s = true_split_scenario
+    r = validate_subtypes(s["labels"], _W(s["coords"]), s["embedding"], n_perm=500, min_cluster_size=10)
+    assert len(set(r.labels)) == 2 and r.merges == [] and r.stats["passes"].all()
 
-def test_pairwise_mode_rejects_fake_split(fake_split_scenario):
-    """
-    Under test_mode='pairwise', the arbitrary B1/B2 split should
-    correctly come back non-significant.
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    _, stats = spatial_validate(
-        fake_split_scenario["labels"], W, test_mode="pairwise", action="flag",
-        reference_expression=fake_split_scenario["fake_expression"], n_perm=1000,
-    )
-    b_rows = stats[stats["cluster"].isin(["B1", "B2"])]
-    assert (b_rows["p_adj"] > 0.05).all()
 
-def test_pairwise_mode_retains_real_split(true_split_scenario):
-    """
-    Check the pairwise fix must not cost sensitivity on a genuine spatial split.
-    """
-    W = _build_W(true_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    _, stats = spatial_validate(
-        true_split_scenario["labels"], W, test_mode="pairwise", action="flag",
-        reference_expression=true_split_scenario["expression"], n_perm=1000,
-    )
-    assert (stats["p_adj"] < 0.01).all()
+def test_arbitrary_split_inside_one_region_is_merged(fake_split_scenario):
+    s = fake_split_scenario
+    r = validate_subtypes(s["labels"], _W(s["coords"]), s["embedding"], n_perm=500, min_cluster_size=10)
+    assert len(set(r.labels)) == 2
+    sizes = sorted(np.unique(r.labels, return_counts=True)[1])
+    assert sizes == [30, 60], "B1 and B2 should merge; A should stay"
 
-def test_drop_produces_unresolved(fake_split_scenario):
-    """
-    The arbitrary B1/B2 split should be dropped to "unresolved" under
-    action="drop".
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    labels_final, _ = spatial_validate(
-        fake_split_scenario["labels"], W, test_mode="pairwise", action="drop",
-        reference_expression=fake_split_scenario["fake_expression"], n_perm=1000,
-    )
-    assert set(np.unique(labels_final)) == {"A", "unresolved"}
-    assert (labels_final == "unresolved").sum() == 60
 
-def test_merge_collapses_mutual_failures_to_one_label(fake_split_scenario):
-    """
-    B1 and B2 are mutual nearest-siblings and both fail the
-    test, union-find should merge them into a single label, 
-    compared to a naive independent reassignment which would
-    swap their labels.
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    labels_final, _ = spatial_validate(
-        fake_split_scenario["labels"], W, test_mode="pairwise", action="merge",
-        reference_expression=fake_split_scenario["fake_expression"], n_perm=1000,
-    )
-    unique_labels, counts = np.unique(labels_final, return_counts=True)
-    assert len(unique_labels) == 2, f"expected B1+B2 merged into one label, got {dict(zip(unique_labels, counts))}"
-    assert set(counts) == {30, 60}
+def test_no_cell_is_dropped_and_labels_stay_aligned(fake_split_scenario):
+    s = fake_split_scenario
+    r = validate_subtypes(s["labels"], _W(s["coords"]), s["embedding"], n_perm=200, min_cluster_size=10)
+    assert len(r.labels) == len(s["labels"])
+    assert (r.labels[:30] == r.labels[0]).all() and r.labels[0] != r.labels[-1]
 
-def test_merge_requires_reference_expression(fake_split_scenario):
-    """
-    action="merge" requires reference_expression to be given.
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
+
+def test_singleton_cluster_is_merged_not_reported_significant(true_split_scenario):
+    s = true_split_scenario
+    labels = s["labels"].copy(); labels[40] = "solo"
+    r = validate_subtypes(labels, _W(s["coords"]), s["embedding"], n_perm=200, min_cluster_size=10)
+    assert "solo" not in set(r.labels) and len(r.labels) == 90
+    assert any(reason == "too small" for _, _, reason in r.merges)
+
+
+def test_single_cluster_input_returns_cleanly(true_split_scenario):
+    s = true_split_scenario
+    r = validate_subtypes(np.array(["a"] * 90), _W(s["coords"]), s["embedding"], n_perm=50)
+    assert set(r.labels) == {"0"} and len(r.stats) == 1 and not r.stats["passes"].iloc[0]
+
+
+def test_pure_noise_clusters_do_not_survive():
+    """Bug 2 in the old code: clusters of smoothed noise looked spatially significant."""
+    from spatialsubtypes import apply_kernel, embed, neighbour_block, prepare_inputs, cluster_embedding
+    from anndata import AnnData
+    rng = np.random.default_rng(1)
+    n = 1500
+    coords = rng.uniform(0, 600, (n, 2))
+    ad = AnnData(X=(rng.normal(size=(n, 40)) + 5).astype(np.float32), obsm={"spatial": coords})
+    mask = np.ones(n, bool)
+    inp = prepare_inputs(ad, mask, n_hvg=40)
+    W = apply_kernel(build_graph(coords, "knn", n_neighbors=10, query=inp.target_idx), "gaussian")
+    nbr = neighbour_block(inp, W)
+    own_emb = embed(inp.own, None, 0.0, 15)
+    for lam in (0.5, 0.7):
+        emb = embed(inp.own, nbr, lam, 15)
+        labels = cluster_embedding(emb, 1.0, 15)
+        assert len(set(labels)) >= 6, "test needs a real over-clustering to be meaningful"
+        r = validate_subtypes(labels, _W(coords, 10), own_emb, n_perm=200)
+        assert len(set(r.labels)) <= 1, f"lam={lam}: {len(set(r.labels))} noise clusters survived"
+
+
+def test_shape_mismatch_raises(fake_split_scenario):
+    s = fake_split_scenario
     with pytest.raises(ValueError):
-        spatial_validate(fake_split_scenario["labels"], W, action="merge", test_mode="global")
+        validate_subtypes(s["labels"][:-1], _W(s["coords"]), s["embedding"])
 
-def test_pairwise_requires_reference_expression(fake_split_scenario):
-    """
-    test_mode="pairwise" requires reference_expression to be given.
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    with pytest.raises(ValueError):
-        spatial_validate(fake_split_scenario["labels"], W, test_mode="pairwise")
 
-def test_restrict_to_target_preserves_edge_weights(macrophage_in_tissue):
-    """
-    restrict_to_target should be equivalent to building the graph
-    directly on just the target cells' coordinates.
-    """
-    adata = macrophage_in_tissue["adata"]
-    target_mask = macrophage_in_tissue["target_mask"]
-
-    W_full = build_spatial_graph(adata.copy(), mode="radius", radius=20.0, decay="gaussian")
-    W_restricted = restrict_to_target(W_full, target_mask)
-
-    adata_target_only = adata[target_mask].copy()
-    W_direct = build_spatial_graph(adata_target_only, mode="radius", radius=20.0, decay="gaussian")
-
-    assert W_restricted.shape == W_direct.shape
-    assert np.allclose(W_restricted.toarray(), W_direct.toarray())
-
-def test_w_shape_mismatch_raises(fake_split_scenario):
-    """
-    W and labels must have the same number of rows; otherwise a ValueError is raised.
-    """
-    W = _build_W(fake_split_scenario["coords"], mode="radius", radius=20.0, decay="gaussian")
-    bad_labels = fake_split_scenario["labels"][:-1]  # wrong length
-    with pytest.raises(ValueError):
-        spatial_validate(bad_labels, W, test_mode="global")
+def test_bh_adjust_matches_hand_computation():
+    p = np.array([0.01, 0.04, 0.03, 0.005])
+    assert np.allclose(bh_adjust(p), [0.02, 0.04, 0.04, 0.02])
+    assert np.isnan(bh_adjust(np.array([np.nan, 0.5]))[0])

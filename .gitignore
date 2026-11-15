@@ -1,6 +1,9 @@
-*.h5ad
+data/*.h5ad
+figures/demo/
 __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
-*banksy_diagnostics/
+build/
+dist/
+.ipynb_checkpoints/

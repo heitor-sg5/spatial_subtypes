@@ -1,6 +1,4 @@
-"""
-Tests for cluster.py.
-"""
+"""Tests for cluster.py."""
 
 from __future__ import annotations
 
@@ -8,50 +6,42 @@ import numpy as np
 import pytest
 from sklearn.metrics import adjusted_rand_score
 
-from spatialsubtypes.augment import augment_features
-from spatialsubtypes.cluster import cluster_leiden
-from spatialsubtypes.graph import build_spatial_graph
+from spatialsubtypes import cluster_embedding, cluster_to_counts, knn_graph, resolution_for_n_clusters
 
-def test_recovers_known_spatial_groups(macrophage_in_tissue):
-    """
-    Full graph -> augment -> cluster chain on the macrophage_in_tissue
-    fixture should recover the true 30/30 spatial split with perfect
-    ARI (=1).
-    """
-    adata = macrophage_in_tissue["adata"]
-    target_mask = macrophage_in_tissue["target_mask"]
-    true_niche = macrophage_in_tissue["true_niche"]
 
-    W = build_spatial_graph(adata, mode="radius", radius=20.0, decay="gaussian")
-    X_pca = augment_features(adata, W, lam=0.7, n_pcs=5, target_mask=target_mask, key_added="macro")
-    labels = cluster_leiden(X_pca, resolution=0.5, n_neighbors=10)
+def _blobs(k=5, n=80, seed=0, spread=8.0):
+    rng = np.random.default_rng(seed)
+    centres = rng.normal(0, spread, (k, 4))
+    X = np.vstack([rng.normal(c, 1.0, (n, 4)) for c in centres])
+    return X, np.repeat(np.arange(k), n)
 
-    assert len(set(labels)) == 2
-    assert adjusted_rand_score(true_niche, labels) == 1.0
+
+def test_recovers_well_separated_groups():
+    X, y = _blobs(3)
+    assert adjusted_rand_score(y, cluster_embedding(X, 0.5, 10)) == 1.0
+
 
 def test_nan_input_raises():
-    """
-    cluster_leiden should refuse NaN-containing input with a clear
-    error.
-    """
-    X_with_nan = np.full((20, 5), np.nan)
     with pytest.raises(ValueError, match="NaN"):
-        cluster_leiden(X_with_nan)
+        knn_graph(np.full((20, 3), np.nan))
 
-def test_adata_out_writeback_respects_target_mask(macrophage_in_tissue):
-    """
-    When adata_out/target_mask are given, labels should land only on
-    target rows; non-target rows should get the "NA" placeholder.
-    """
-    adata = macrophage_in_tissue["adata"]
-    target_mask = macrophage_in_tissue["target_mask"]
-    W = build_spatial_graph(adata, mode="radius", radius=20.0, decay="gaussian")
-    X_pca = augment_features(adata, W, lam=0.7, n_pcs=5, target_mask=target_mask, key_added="macro")
 
-    cluster_leiden(
-        X_pca, resolution=0.5, n_neighbors=10,
-        adata_out=adata, key_added="subtype", target_mask=target_mask,
-    )
+def test_same_seed_same_labels():
+    X, _ = _blobs(4)
+    assert (cluster_embedding(X, 1.0, 10, seed=3) == cluster_embedding(X, 1.0, 10, seed=3)).all()
 
-    assert (adata.obs.loc[~target_mask, "subtype"] == "NA").all()
-    assert (adata.obs.loc[target_mask, "subtype"] != "NA").all()
+
+def test_resolution_search_hits_requested_cluster_count():
+    # overlapping blobs: the kNN graph is connected, so Leiden can merge them freely
+    X, _ = _blobs(6, n=120, spread=1.5)
+    g = knn_graph(X, 15)
+    for target in (3, 6):
+        _, labels = resolution_for_n_clusters(g, target)
+        assert labels.max() + 1 == target
+
+
+def test_cluster_to_counts_returns_every_count_and_seed():
+    X, _ = _blobs(6, spread=1.5)
+    out = cluster_to_counts(X, counts=(3, 6), seeds=(0, 1, 2), n_neighbors=15)
+    assert set(out) == {(c, s) for c in (3, 6) for s in (0, 1, 2)}
+    assert out[(6, 0)].max() + 1 == 6

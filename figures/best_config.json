@@ -1,0 +1,9 @@
+{
+  "mode": "radius",
+  "radius": 32.0,
+  "kernel": "reciprocal",
+  "lam": 0.2,
+  "feature": "expression",
+  "note": "best of the grid at lam=0.2; margin over runner-up 0.001; seed sd 0.007",
+  "best_radius_um": 32.0
+}
