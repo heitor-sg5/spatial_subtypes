@@ -2,10 +2,10 @@
 Stage 1: spatial neighbour graphs and distance kernels.
 
 A graph is a list of edges with their true Euclidean lengths. Weights are
-applied afterwards by ``apply_kernel``, so a kernel can be swapped without
+applied afterwards by 'apply_kernel', so a kernel can be swapped without
 rebuilding the graph.
 
-Only the rows you ask for (``query``) are built. For subtyping, that is the
+Only the rows you ask for ('query') are built. For subtyping, that is the
 target cells; their neighbours can be any bin in the tissue.
 """
 
@@ -20,13 +20,12 @@ from scipy.spatial import Delaunay, cKDTree
 MODES = ("radius", "knn", "delaunay")
 KERNELS = ("gaussian", "exponential", "reciprocal", "uniform")
 
-
 @dataclass
 class Graph:
-    """Directed edges from ``n_rows`` query cells to ``n_cols`` cells.
-
-    ``row`` indexes the query cells (0 .. n_rows-1), ``col`` indexes all cells.
-    ``dist`` holds the true Euclidean length of each edge.
+    """
+    Directed edges from 'n_rows' query cells to 'n_cols' cells.
+    'row' indexes the query cells (0 .. n_rows-1), 'col' indexes all cells.
+    'dist' holds the true Euclidean length of each edge.
     """
 
     n_rows: int
@@ -42,7 +41,6 @@ class Graph:
         """Number of neighbours of each query cell."""
         return np.bincount(self.row, minlength=self.n_rows)
 
-
 def _as_query(query, n: int) -> np.ndarray:
     if query is None:
         return np.arange(n)
@@ -53,7 +51,6 @@ def _as_query(query, n: int) -> np.ndarray:
         return np.flatnonzero(query)
     return query.astype(np.int64)
 
-
 def _symmetrise(row, col, dist, n):
     """Keep each undirected edge once per direction (union of both directions)."""
     a = np.concatenate([row, col]).astype(np.int64)
@@ -63,10 +60,9 @@ def _symmetrise(row, col, dist, n):
     _, first = np.unique(key, return_index=True)
     return a[first], b[first], d[first]
 
-
 def _delaunay_edges(coords: np.ndarray, prune_factor: float | None):
-    """Unique undirected Delaunay edges (a < b) and their true lengths.
-
+    """
+    Unique undirected Delaunay edges (a < b) and their true lengths.
     Each interior edge belongs to two triangles, so edges are de-duplicated
     before lengths are computed.
     """
@@ -82,7 +78,6 @@ def _delaunay_edges(coords: np.ndarray, prune_factor: float | None):
         a, b, length = a[keep], b[keep], length[keep]
     return a, b, length
 
-
 def build_graph(
     coords: np.ndarray,
     mode: str = "knn",
@@ -94,21 +89,22 @@ def build_graph(
     query=None,
     symmetric: bool = False,
 ) -> Graph:
-    """Build a spatial graph.
+    """
+    Build a spatial graph.
 
     Parameters
     ----------
     coords : (n, 2) array of coordinates, in one consistent unit (e.g. microns).
     mode : "radius", "knn" or "delaunay".
-    radius : cutoff for mode="radius", in the units of ``coords``.
+    radius : cutoff for mode="radius", in the units of 'coords'.
     n_neighbors : neighbours per cell for mode="knn" (self excluded).
     rings : for mode="delaunay", how many triangulation hops count as neighbours
         (1 = triangulation edges only).
     prune_factor : for mode="delaunay", drop edges longer than this multiple of
-        the median edge length (removes links across tissue gaps). None disables.
+        the median edge length (removes links across tissue gaps).
     query : indices (or boolean mask) of the cells to build rows for. Default: all.
     symmetric : make the graph undirected (union of both directions). Only
-        valid when ``query`` is None.
+        valid when 'query' is None.
     """
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
@@ -173,7 +169,6 @@ def build_graph(
         radius=radius if mode == "radius" else None,
     )
 
-
 def adjacency(graph: Graph) -> sp.csr_matrix:
     """Binary adjacency matrix (1 for every edge)."""
     return sp.csr_matrix(
@@ -181,9 +176,9 @@ def adjacency(graph: Graph) -> sp.csr_matrix:
         shape=(graph.n_rows, graph.n_cols),
     )
 
-
 def apply_kernel(graph: Graph, kernel: str = "gaussian", bandwidth: float | None = None) -> sp.csr_matrix:
-    """Turn a graph into a row-normalised weight matrix (each non-empty row sums to 1).
+    """
+    Turn a graph into a row-normalised weight matrix (each non-empty row sums to 1).
 
     kernel
         "gaussian"    exp(-2 d^2 / h^2)
@@ -191,7 +186,7 @@ def apply_kernel(graph: Graph, kernel: str = "gaussian", bandwidth: float | None
         "reciprocal"  1 / d (BANKSY's "reciprocal"; needs no bandwidth)
         "uniform"     equal weights (baseline)
 
-    The bandwidth h is ``bandwidth`` if given, else the radius for radius
+    The bandwidth h is 'bandwidth' if given, else the radius for radius
     graphs, else each cell's farthest-neighbour distance. At d = h the
     Gaussian and exponential weights are both exp(-2) = 0.14.
     Cells with no neighbours get an all-zero row.
@@ -205,7 +200,7 @@ def apply_kernel(graph: Graph, kernel: str = "gaussian", bandwidth: float | None
     elif kernel == "reciprocal":
         positive = d[d > 0]
         floor = positive.min() if positive.size else 1.0
-        w = 1.0 / np.maximum(d, floor)  # coincident cells cannot give infinite weight
+        w = 1.0 / np.maximum(d, floor) 
     else:
         if bandwidth is not None:
             h = np.full(graph.n_rows, float(bandwidth))

@@ -2,20 +2,17 @@
 Stage 2: feature blocks and the lambda-mixed embedding.
 
 Two blocks describe each target cell:
-
-* own block: the cell's own expression (z-scored per gene, HVGs chosen within
-  the target cells);
-* neighbour block: either the kernel-weighted mean expression of its
+- own block: the cell's own expression (z-scored per gene);
+- neighbour block: either the kernel-weighted mean expression of its
   neighbours ("expression") or the cell-type fractions among its neighbours
-  ("composition"). Neighbours come from the whole tissue.
+  ("composition").
 
 Following BANKSY, genes are standardised before neighbours are averaged, and
 both blocks are divided by the square root of their gene count. The own block
 then has total variance 1, and the neighbour block has total variance below 1
-(averaging removes noise but keeps smooth, niche-level variation), so lam is
-comparable with BANKSY's lambda. ``embed(lam)`` mixes the blocks with weights
-sqrt(1 - lam) and sqrt(lam). Rescaling the neighbour block to unit total
-variance (scaling="unit_variance") lets it swamp the own block even at small lam.
+(averaging removes noise but keeps smooth, niche-level variation). Rescaling 
+the neighbour block to unit total variance (scaling="unit_variance") lets it 
+swamp the own block even at small lam.
 """
 
 from __future__ import annotations
@@ -30,7 +27,6 @@ from sklearn.decomposition import PCA
 FEATURES = ("expression", "composition")
 SCALINGS = ("input_std", "unit_variance", "per_gene")
 
-
 def _col_moments(X: sp.spmatrix, chunk: int = 50_000):
     """Column mean and (population) variance of a sparse matrix, in row chunks."""
     n, g = X.shape
@@ -43,13 +39,13 @@ def _col_moments(X: sp.spmatrix, chunk: int = 50_000):
     mean = s / n
     return mean, np.maximum(ss / n - mean**2, 0.0)
 
-
 def select_hvg(X, n_top: int = 2000, degree: int = 3) -> np.ndarray:
-    """Indices of highly variable genes of a log-normalised matrix.
+    """
+    Indices of highly variable genes of a log-normalised matrix.
 
     Fits a robust trend of log variance against log mean (cubic polynomial,
     refitted after discarding the 15% most variable genes) and keeps the
-    ``n_top`` genes with the largest residual. Genes with zero mean or
+    'n_top' genes with the largest residual. Genes with zero mean or
     variance are never selected.
     """
     X = X.tocsr() if sp.issparse(X) else sp.csr_matrix(np.asarray(X))
@@ -67,22 +63,20 @@ def select_hvg(X, n_top: int = 2000, degree: int = 3) -> np.ndarray:
     score[ok] = resid
     return np.sort(np.argsort(-score)[:n_top])
 
-
 @dataclass
 class Inputs:
     """Everything the feature blocks need, computed once per dataset."""
 
-    target_idx: np.ndarray            # indices of target cells in the full tissue
-    own: np.ndarray                   # (n_target, g_own) unit-total-variance own block
-    X_nbr: sp.csr_matrix              # (n_cells, g_nbr) tissue-wide HVG expression
-    nbr_std: np.ndarray               # per-gene std of X_nbr over the whole tissue
-    onehot: sp.csr_matrix | None = None   # (n_cells, n_types) cell-type indicators
+    target_idx: np.ndarray  # indices of target cells in the full tissue
+    own: np.ndarray  # (n_target, g_own) unit-total-variance own block
+    X_nbr: sp.csr_matrix  # (n_cells, g_nbr) tissue-wide HVG expression
+    nbr_std: np.ndarray  # per-gene std of X_nbr over the whole tissue
+    onehot: sp.csr_matrix | None = None  # (n_cells, n_types) cell-type indicators
     onehot_std: np.ndarray | None = None  # per-type std of the indicators over the whole tissue
     categories: list | None = None
     own_genes: np.ndarray | None = None
     nbr_genes: np.ndarray | None = None
     cache: dict = field(default_factory=dict)
-
 
 def prepare_inputs(
     adata,
@@ -94,11 +88,12 @@ def prepare_inputs(
     own_genes: np.ndarray | None = None,
     nbr_genes: np.ndarray | None = None,
 ) -> Inputs:
-    """Select genes and build the own block.
+    """
+    Select genes and build the own block.
 
-    ``adata.X`` (or ``layer``) must be log-normalised expression for the FULL
-    tissue; the target cells are picked with ``target_mask`` afterwards.
-    ``composition_key`` is an ``adata.obs`` column of cell-type labels; cells
+    'adata.X' (or 'layer') must be log-normalised expression for the FULL
+    tissue; the target cells are picked with 'target_mask' afterwards.
+    'composition_key' is an 'adata.obs' column of cell-type labels; cells
     with a missing label become their own "unassigned" category.
     """
     target_mask = np.asarray(target_mask, dtype=bool)
@@ -153,18 +148,17 @@ def prepare_inputs(
         nbr_genes=nbr_genes,
     )
 
-
 def _scaled(inputs: Inputs, name: str, M: sp.csr_matrix, std: np.ndarray) -> sp.csr_matrix:
-    """Column-scale M by 1 / std (cached on ``inputs``)."""
+    """Column-scale M by 1 / std (cached on 'inputs')."""
     if name not in inputs.cache:
         inv = 1.0 / np.where(std > 0, std, 1.0)
         inputs.cache[name] = (M @ sp.diags(inv.astype(np.float32))).tocsr()
     return inputs.cache[name]
 
-
 def neighbour_matrix(inputs: Inputs, W: sp.csr_matrix, feature: str = "expression",
                      scaling: str = "input_std") -> np.ndarray:
-    """Weighted neighbour average of the chosen feature, before centring.
+    """
+    Weighted neighbour average of the chosen feature, before centring.
 
     With scaling "input_std" or "unit_variance" each gene (or cell-type
     indicator) is divided by its tissue-wide std before averaging, which is
@@ -185,18 +179,18 @@ def neighbour_matrix(inputs: Inputs, W: sp.csr_matrix, feature: str = "expressio
     out = W @ M
     return out.toarray() if sp.issparse(out) else np.asarray(out)
 
-
 def neighbour_block(inputs: Inputs, W: sp.csr_matrix, feature: str = "expression",
                     scaling: str = "input_std") -> np.ndarray:
-    """Neighbour block for the target cells.
+    """
+    Neighbour block for the target cells.
 
     W is the (n_target, n_cells) row-normalised weight matrix from
-    ``apply_kernel``. Cells with no neighbours get the average neighbourhood
+    'apply_kernel'. Cells with no neighbours get the average neighbourhood
     (zero after centring), not their own expression.
 
     scaling
         "input_std"      standardise genes, average, centre, divide by sqrt(n features).
-                         Total variance is below 1 (default; BANKSY-like).
+                         Total variance is below 1.
         "unit_variance"  as above, then rescale the block to total variance 1.
         "per_gene"       average raw values, z-score every output column, divide by
                          sqrt(n features). Inflates columns whose neighbourhood mean
@@ -221,11 +215,10 @@ def neighbour_block(inputs: Inputs, W: sp.csr_matrix, feature: str = "expression
         nbr = nbr / np.sqrt(total) if total > 0 else nbr
     return nbr.astype(np.float32)
 
-
 def embed(own: np.ndarray, nbr: np.ndarray | None, lam: float, n_pcs: int = 50,
           seed: int = 0) -> np.ndarray:
-    """PCA of [sqrt(1 - lam) * own, sqrt(lam) * nbr].
-
+    """
+    PCA of [sqrt(1 - lam) * own, sqrt(lam) * nbr].
     lam = 0 is plain expression PCA; lam = 1 uses the neighbourhood only.
     """
     if not 0.0 <= lam <= 1.0:
