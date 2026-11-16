@@ -55,11 +55,15 @@ def main():
     for name, lab in (("raw", res.labels_raw), ("validated", res.labels)):
         lines.append(f"{name}: recovery F1={common.recovery_f1(lab, groups):.3f}  pair ARI={common.pair_ari(lab, groups):.3f}"
                      f"  coherence={common.spatial_coherence(lab, bench.A_val):.3f}")
-    # expression-only baseline clustered to the same number of subtypes
+        # expression-only baseline clustered to the same number of subtypes, averaged over seeds
     own_emb = bench.embedding({}, "uniform", "expression", 0.0)
-    _, base = resolution_for_n_clusters(knn_graph(own_emb, cfg.LEIDEN_NEIGHBORS), len(set(res.labels)))
-    lines.append(f"expression only, same cluster count: recovery F1={common.recovery_f1(base, groups):.3f}"
-                 f"  pair ARI={common.pair_ari(base, groups):.3f}  coherence={common.spatial_coherence(base, bench.A_val):.3f}")
+    g_own = knn_graph(own_emb, cfg.LEIDEN_NEIGHBORS)
+    n_sub = len(set(res.labels))
+    base = [resolution_for_n_clusters(g_own, n_sub, seed=s)[1] for s in cfg.SEEDS]
+    lines.append(f"expression only, {n_sub} clusters, mean of {len(base)} seeds: "
+                 f"recovery F1={np.mean([common.recovery_f1(b, groups) for b in base]):.3f}  "
+                 f"pair ARI={np.mean([common.pair_ari(b, groups) for b in base]):.3f}  "
+                 f"coherence={np.mean([common.spatial_coherence(b, bench.A_val) for b in base]):.3f}")
     cont = pd.crosstab(pd.Series(res.labels, name="subtype"), pd.Series(groups, name="reference"))
     cont.to_csv(out / "final_contingency.csv")
     print("\nSubtype x reference:\n", cont.to_string())
