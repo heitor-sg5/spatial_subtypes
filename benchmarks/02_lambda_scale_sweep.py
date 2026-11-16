@@ -8,8 +8,6 @@ Using the graph and kernel chosen by script 01 (figures/best_config.json):
 
 Writes figures/lambda_sweep.csv, figures/radius_sweep.csv, updates
 figures/best_config.json and writes figures/02_lambda_scale_sweep.png.
-
-    python benchmarks/02_lambda_scale_sweep.py [--demo]
 """
 
 import json
@@ -21,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import pandas as pd
 
 from benchmarks import common, config as cfg
-
 
 def main():
     args = common.parse_args(__doc__)
@@ -82,7 +79,6 @@ def main():
     fig.suptitle("Lambda, neighbourhood size and neighbour feature" + ("   [SIMULATED DEMO DATA]" if args.demo else ""), y=1.03)
     fig.tight_layout()
     common.savefig(fig, out, "02_lambda_scale_sweep")
-
 
 if __name__ == "__main__":
     main()

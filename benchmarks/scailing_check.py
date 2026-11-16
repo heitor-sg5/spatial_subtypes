@@ -1,4 +1,5 @@
 """Compare neighbour-block scalings on synthetic tissue where target cells carry NO niche signal of their own."""
+
 import numpy as np, scipy.sparse as sp
 from anndata import AnnData
 from sklearn.metrics import silhouette_score
@@ -14,11 +15,11 @@ def make(seed, G=90, n_genes=2000, n_marker=8, heavy=100, marker_shift=1.0):
     niche = (xy[:, 0] + 120 * np.sin(xy[:, 1] / 150) > G * 4).astype(int)
     target = rng.random(n) < 0.10
     mu = rng.uniform(0.05, 1.5, n_genes); sd = rng.uniform(0.2, 0.8, n_genes)
-    sd[:heavy] = rng.uniform(2.0, 3.5, heavy)              # heavy-variance, niche-unrelated genes
+    sd[:heavy] = rng.uniform(2.0, 3.5, heavy)
     sd[heavy:heavy + 2 * n_marker] = 0.5
     X = mu + sd * rng.standard_normal((n, n_genes))
     m = heavy
-    X[:, m:m + n_marker][niche == 0] += marker_shift          # niche-0 markers (non-target cells only)
+    X[:, m:m + n_marker][niche == 0] += marker_shift
     X[:, m + n_marker:m + 2 * n_marker][niche == 1] += marker_shift
     X[target][:, m:m + 2 * n_marker]
     # target cells: remove niche signal from own expression

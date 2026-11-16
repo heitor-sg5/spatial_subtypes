@@ -1,6 +1,5 @@
 """
-Shared helpers for the benchmark scripts: data loading (real or simulated),
-scoring against the reference labels, a cached experiment runner, and plots.
+Shared helpers for the benchmark scripts
 """
 
 from __future__ import annotations
@@ -20,24 +19,20 @@ from sklearn.neighbors import KNeighborsClassifier
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from src.spatialsubtypes import (  # noqa: E402
+from src.spatialsubtypes import (
     adjacency, apply_kernel, build_graph, cluster_to_counts, embed, neighbour_block, prepare_inputs,
 )
 
-from benchmarks import config as cfg  # noqa: E402
+from benchmarks import config as cfg
 
 GROUPS = ("SPP1+", "SELENOP+", "other")
-
-
-# --------------------------------------------------------------------------- data
-
+# ---- Data ----
 def parse_args(description: str) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=description)
     ap.add_argument("--data", type=Path, default=cfg.DATA_PATH, help="path to the annotated .h5ad file")
     ap.add_argument("--demo", action="store_true",
                     help="use simulated data instead of the real file (figures go to figures/demo/)")
     return ap.parse_args()
-
 
 def load(args) -> tuple[AnnData, np.ndarray, Path]:
     """Return (full-tissue AnnData, target mask, output directory)."""
@@ -57,26 +52,22 @@ def load(args) -> tuple[AnnData, np.ndarray, Path]:
           f"({cfg.TARGET_TYPE}, {cfg.PERIPHERY_VALUE})")
     return adata, mask, out
 
-
 def target_mask(adata) -> np.ndarray:
     return ((adata.obs[cfg.CELL_TYPE_KEY] == cfg.TARGET_TYPE)
             & (adata.obs[cfg.PERIPHERY_KEY] == cfg.PERIPHERY_VALUE)).to_numpy()
-
 
 def reference_groups(adata, idx) -> np.ndarray:
     """Three-group reference for the target bins: SPP1+, SELENOP+, other."""
     ref = adata.obs[cfg.REFERENCE_KEY].iloc[idx].astype(object).to_numpy()
     return np.where(ref == cfg.REFERENCE_SPP1, "SPP1+", np.where(ref == cfg.REFERENCE_SELENOP, "SELENOP+", "other"))
 
-
 def load_best() -> dict:
     path = cfg.FIGURES_DIR / "best_config.json"
     return json.loads(path.read_text()) if path.exists() else dict(cfg.DEFAULT_BEST)
 
-
 def make_demo_data(seed: int = 0, grid: int = 140, n_genes: int = 200) -> AnnData:
-    """Simulated Visium-HD-like tissue (NOT real data), for testing the scripts.
-
+    """
+    Simulated Visium-HD-like tissue (NOT real data), for testing the scripts.
     A grid of 8 um bins is split into two niches by a wavy boundary. Macrophages
     near the boundary fall into five states: SPP1-like (mostly in niche A),
     SELENOP-like (mostly in niche B) and three unnamed states. Only the first two
@@ -122,7 +113,7 @@ def make_demo_data(seed: int = 0, grid: int = 140, n_genes: int = 200) -> AnnDat
     for t, gs in type_genes.items():
         eff[np.ix_(ctype == t, gs)] += 1.5
     niche_a, niche_b = np.arange(100, 120), np.arange(120, 140)
-    bleed = np.where(is_mac, 0.3, 1.0)[:, None]          # macrophages only partly show niche programmes
+    bleed = np.where(is_mac, 0.3, 1.0)[:, None]
     eff[np.ix_(niche == 0, niche_a)] += 0.8 * bleed[niche == 0]
     eff[np.ix_(niche == 1, niche_b)] += 0.8 * bleed[niche == 1]
     markers = {"SPP1": np.arange(140, 150), "SELENOP": np.arange(150, 160),
@@ -148,12 +139,10 @@ def make_demo_data(seed: int = 0, grid: int = 140, n_genes: int = 200) -> AnnDat
     adata.obs["demo_niche"] = niche
     return adata
 
-
-# ------------------------------------------------------------------------ metrics
-
+# ---- Metrics ----
 def recovery_f1(labels, groups, named=("SPP1+", "SELENOP+")) -> float:
-    """Mean over the named subtypes of the best F1 that any single cluster reaches.
-
+    """
+    Mean over the named subtypes of the best F1 that any single cluster reaches.
     F1 is computed over ALL target bins, so a cluster that swallows the subtype
     together with many unnamed bins is penalised.
     """
@@ -173,12 +162,10 @@ def recovery_f1(labels, groups, named=("SPP1+", "SELENOP+")) -> float:
         scores.append(best)
     return float(np.mean(scores))
 
-
 def pair_ari(labels, groups) -> float:
     """ARI restricted to the bins that carry a reference name."""
     named = groups != "other"
     return float(adjusted_rand_score(groups[named], np.asarray(labels)[named]))
-
 
 def embedding_accuracy(emb, groups, k: int = 15, seed: int = 0) -> float:
     """Cross-validated balanced accuracy of a kNN classifier of the three reference groups."""
@@ -186,19 +173,15 @@ def embedding_accuracy(emb, groups, k: int = 15, seed: int = 0) -> float:
     pred = cross_val_predict(KNeighborsClassifier(k), emb, groups, cv=cv)
     return float(balanced_accuracy_score(groups, pred))
 
-
 def spatial_coherence(labels, A: sp.spmatrix) -> float:
     """Share of target-only graph edges whose two ends carry the same label."""
     labels = np.asarray(labels)
     coo = sp.triu(A, k=1).tocoo()
     return float((labels[coo.row] == labels[coo.col]).mean())
 
-
-# ------------------------------------------------------------------------ runner
-
+# ---- Runner ----
 class Bench:
     """Runs one configuration at a time and caches the expensive intermediates."""
-
     def __init__(self, adata, mask, composition: bool = True):
         self.adata = adata
         self.coords = np.asarray(adata.obsm[cfg.SPATIAL_KEY], dtype=float)
@@ -258,9 +241,7 @@ class Bench:
                 "coherence_sd": arr[:, 2].std(ddof=1) if len(arr) > 1 else 0.0,
                 "embedding_acc": embedding_accuracy(emb, self.groups)}
 
-
-# -------------------------------------------------------------------------- plots
-
+# ---- Plots ----
 def plt():
     import matplotlib
     matplotlib.use("Agg")
@@ -269,13 +250,11 @@ def plt():
                           "axes.spines.top": False, "axes.spines.right": False})
     return _plt
 
-
 def savefig(fig, out_dir: Path, name: str) -> Path:
     path = out_dir / f"{name}.png"
     fig.savefig(path, bbox_inches="tight")
     print(f"Saved {path}")
     return path
-
 
 def scatter_labels(ax, coords, labels, title, grey=("NA", "other", "unlabelled")):
     labels = pd.Series(np.asarray(labels, dtype=object)).fillna("unlabelled")

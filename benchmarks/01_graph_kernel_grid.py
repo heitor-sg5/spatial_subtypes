@@ -8,9 +8,6 @@ and a BANKSY-style configuration (kNN 15, Gaussian, lambda = 0.2).
 
 Writes figures/grid_results.csv, figures/best_config.json and
 figures/01_graph_kernel_grid.png.
-
-    python benchmarks/01_graph_kernel_grid.py            # real data
-    python benchmarks/01_graph_kernel_grid.py --demo     # simulated data
 """
 
 import json
@@ -29,7 +26,6 @@ GRAPHS = {
     "knn": dict(mode="knn", n_neighbors=cfg.KNN_K),
     "delaunay": dict(mode="delaunay", rings=cfg.DELAUNAY_RINGS),
 }
-
 
 def main():
     args = common.parse_args(__doc__)
@@ -94,7 +90,6 @@ def main():
                  + ("   [SIMULATED DEMO DATA]" if args.demo else ""), y=1.03)
     fig.tight_layout()
     common.savefig(fig, out, "01_graph_kernel_grid")
-
 
 if __name__ == "__main__":
     main()

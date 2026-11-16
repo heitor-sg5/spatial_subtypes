@@ -5,11 +5,9 @@ Runs find_spatial_subtypes with the best configuration (figures/best_config.json
 written by scripts 01 and 02) from a deliberately over-clustered start, then shows:
   - the reference labels and the validated subtypes on the tissue,
   - the cell-type composition around each subtype,
-  - marker genes per subtype (SPP1 and SELENOP included when present).
+  - marker genes per subtype.
 Writes figures/03_final_subtypes.png, figures/final_contingency.csv and
 figures/final_report.txt.
-
-    python benchmarks/03_final_subtypes.py [--demo]
 """
 
 import json
@@ -25,7 +23,6 @@ import scipy.sparse as sp
 from benchmarks import common, config as cfg
 from src.spatialsubtypes import find_spatial_subtypes, knn_graph, resolution_for_n_clusters
 from src.spatialsubtypes.features import neighbour_matrix
-
 
 def main():
     args = common.parse_args(__doc__)
@@ -116,7 +113,6 @@ def main():
     common.savefig(fig, out, "03_final_subtypes")
     (out / "final_report.txt").write_text("\n".join(lines) + "\n")
     print("\n" + "\n".join(lines))
-
 
 if __name__ == "__main__":
     main()
