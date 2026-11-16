@@ -55,7 +55,7 @@ def main():
     for name, lab in (("raw", res.labels_raw), ("validated", res.labels)):
         lines.append(f"{name}: recovery F1={common.recovery_f1(lab, groups):.3f}  pair ARI={common.pair_ari(lab, groups):.3f}"
                      f"  coherence={common.spatial_coherence(lab, bench.A_val):.3f}")
-        # expression-only baseline clustered to the same number of subtypes, averaged over seeds
+    # expression-only baseline clustered to the same number of subtypes, averaged over seeds
     own_emb = bench.embedding({}, "uniform", "expression", 0.0)
     g_own = knn_graph(own_emb, cfg.LEIDEN_NEIGHBORS)
     n_sub = len(set(res.labels))
