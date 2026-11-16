@@ -2,7 +2,7 @@
 Stage 3: Leiden clustering of the embedding.
 
 A kNN graph is built on the embedding and partitioned with Leiden. Because
-the number of clusters depends strongly on the resolution, ``cluster_to_counts``
+the number of clusters depends strongly on the resolution, 'cluster_to_counts'
 searches for the resolution that gives a requested number of clusters.
 """
 
@@ -12,7 +12,6 @@ import igraph as ig
 import leidenalg
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
-
 
 def knn_graph(X: np.ndarray, n_neighbors: int = 15) -> ig.Graph:
     """Undirected kNN graph on the rows of X (exact search)."""
@@ -29,7 +28,6 @@ def knn_graph(X: np.ndarray, n_neighbors: int = 15) -> ig.Graph:
     pairs = np.unique(np.stack([np.minimum(a, b), np.maximum(a, b)], axis=1), axis=0)
     return ig.Graph(n=n, edges=pairs.tolist())
 
-
 def leiden_labels(graph: ig.Graph, resolution: float = 1.0, seed: int = 0) -> np.ndarray:
     """Leiden partition of a graph as an integer label array."""
     part = leidenalg.find_partition(
@@ -38,17 +36,15 @@ def leiden_labels(graph: ig.Graph, resolution: float = 1.0, seed: int = 0) -> np
     )
     return np.asarray(part.membership, dtype=int)
 
-
 def cluster_embedding(X: np.ndarray, resolution: float = 1.0, n_neighbors: int = 15,
                       seed: int = 0) -> np.ndarray:
     """kNN graph on X, then Leiden at a fixed resolution."""
     return leiden_labels(knn_graph(X, n_neighbors), resolution, seed)
 
-
 def resolution_for_n_clusters(graph: ig.Graph, n_clusters: int, seed: int = 0,
                               max_iter: int = 16, lo: float = 1e-3, hi: float = 50.0):
-    """Search (in log space) for the resolution that yields ``n_clusters``.
-
+    """
+    Search (in log space) for the resolution that yields 'n_clusters'.
     Returns (resolution, labels). If the exact count is never reached, the
     closest count found is returned (ties go to the lower resolution).
     """
@@ -69,10 +65,9 @@ def resolution_for_n_clusters(graph: ig.Graph, n_clusters: int, seed: int = 0,
             b = mid
     return best[1], best[2]
 
-
 def cluster_to_counts(X: np.ndarray, counts=(4, 6, 8, 10), seeds=(0,), n_neighbors: int = 15):
-    """Cluster at several target cluster counts and several Leiden seeds.
-
+    """
+    Cluster at several target cluster counts and several Leiden seeds.
     The resolution is searched once per count (seed = first seed) and reused
     for the other seeds, so the realised count can differ slightly between
     seeds. Returns {(count, seed): labels}.

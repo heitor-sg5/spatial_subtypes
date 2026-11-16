@@ -2,18 +2,12 @@
 Stage 4: validation of candidate subtypes.
 
 A cluster is kept as a subtype only if, against its nearest sibling cluster,
-it passes BOTH checks:
-
+it passes:
 1. Spatially coherent: its cells are more tightly connected on a target-only
    spatial graph than a random re-split of the same pooled cells (one-sided
    permutation test, Benjamini-Hochberg corrected across clusters).
 2. Distinct in its own expression: a cross-validated classifier on the
    own-expression embedding separates it from the sibling (AUC >= threshold).
-
-Why both: clusters built from neighbour-averaged features are spatially
-clumped even when the data are pure noise, so check 1 alone is not enough.
-Check 2 on its own is circular at lam = 0 (the clusters were built from that
-very expression), where check 1 is the safeguard instead.
 
 Failing clusters are merged into their sibling, smallest first, and the
 remaining clusters are re-tested until all pass. No cell is dropped.
@@ -29,16 +23,14 @@ import scipy.sparse as sp
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold, cross_val_score
 
-
 @dataclass
 class ValidationResult:
-    labels: np.ndarray          # final labels, "0", "1", ... ordered by size
-    stats: pd.DataFrame         # one row per final cluster
-    merges: list                # (merged_cluster, into_cluster, reason), original names
-
+    labels: np.ndarray  # final labels, "0", "1", ... ordered by size
+    stats: pd.DataFrame  # one row per final cluster
+    merges: list   # (merged_cluster, into_cluster, reason), original names
 
 def bh_adjust(p: np.ndarray) -> np.ndarray:
-    """Benjamini-Hochberg adjusted p-values (NaNs stay NaN)."""
+    """Benjamini-Hochberg adjusted p-values."""
     p = np.asarray(p, dtype=float)
     out = np.full(p.shape, np.nan)
     ok = ~np.isnan(p)
@@ -52,7 +44,6 @@ def bh_adjust(p: np.ndarray) -> np.ndarray:
     adj[order] = np.clip(ranked, 0, 1)
     out[ok] = adj
     return out
-
 
 def _perm_pvalue(W: sp.csr_matrix, x: np.ndarray, n_perm: int, rng, batch: int = 200) -> float:
     """P(random subset of the same size is at least as tightly connected as x)."""
@@ -69,7 +60,6 @@ def _perm_pvalue(W: sp.csr_matrix, x: np.ndarray, n_perm: int, rng, batch: int =
         done += b
     return (ge + 1) / (n_perm + 1)
 
-
 def _pair_auc(emb: np.ndarray, y: np.ndarray, cv: int, max_pool: int, seed: int) -> float:
     """Cross-validated AUC of a logistic classifier separating y=1 from y=0."""
     rng = np.random.default_rng(seed)
@@ -83,7 +73,6 @@ def _pair_auc(emb: np.ndarray, y: np.ndarray, cv: int, max_pool: int, seed: int)
     skf = StratifiedKFold(folds, shuffle=True, random_state=seed)
     return float(cross_val_score(clf, emb, y, cv=skf, scoring="roc_auc").mean())
 
-
 def _nearest_sibling(clusters, labels, emb):
     centroids = {c: emb[labels == c].mean(axis=0) for c in clusters}
     sib = {}
@@ -92,7 +81,6 @@ def _nearest_sibling(clusters, labels, emb):
         d = [np.linalg.norm(centroids[c] - centroids[o]) for o in others]
         sib[c] = others[int(np.argmin(d))]
     return sib
-
 
 def _test_round(labels, W, emb, n_perm, alpha, min_cluster_size, auc_threshold, cv, max_pool, seed):
     clusters = list(np.unique(labels))
@@ -118,7 +106,6 @@ def _test_round(labels, W, emb, n_perm, alpha, min_cluster_size, auc_threshold, 
     stats["passes"] = stats["spatial_ok"] & stats["expression_ok"] & ~stats["too_small"]
     return stats
 
-
 def _reason(row) -> str:
     if row["too_small"]:
         return "too small"
@@ -128,7 +115,6 @@ def _reason(row) -> str:
     if not row["expression_ok"]:
         parts.append("not distinct in own expression")
     return " and ".join(parts)
-
 
 def validate_subtypes(
     labels,
@@ -143,14 +129,15 @@ def validate_subtypes(
     max_pool: int = 5000,
     seed: int = 0,
 ) -> ValidationResult:
-    """Merge candidate clusters that fail the spatial or expression check.
+    """
+    Merge candidate clusters that fail the spatial or expression check.
 
     Parameters
     ----------
     labels : cluster label per target cell.
     W : (n_target, n_target) symmetric, non-negative target-to-target spatial
-        graph (``adjacency(build_graph(coords_target, "knn", symmetric=True))``).
-    embedding : own-expression embedding of the target cells (``embed(own, None, 0)``).
+        graph ('adjacency(build_graph(coords_target, "knn", symmetric=True))').
+    embedding : own-expression embedding of the target cells ('embed(own, None, 0)').
         It is used for the sibling search and for check 2, so it must not
         contain neighbourhood information.
     """
