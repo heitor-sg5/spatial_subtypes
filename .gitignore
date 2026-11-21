@@ -7,3 +7,9 @@ __pycache__/
 build/
 dist/
 .ipynb_checkpoints/
+benchmarks/
+tests/
+figures/*
+!figures/01_graph_kernel_grid.png
+!figures/02_lambda_scale_sweep.png
+!figures/03_final_subtypes.png
