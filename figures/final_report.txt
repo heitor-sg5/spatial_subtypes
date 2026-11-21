@@ -1,5 +1,0 @@
-configuration: {'mode': 'radius', 'radius': 32.0} kernel=reciprocal lam=0.2 feature=expression
-raw clusters: 8; validated subtypes: 4
-raw: recovery F1=0.366  pair ARI=0.433  coherence=0.575
-validated: recovery F1=0.370  pair ARI=0.479  coherence=0.695
-expression only, same cluster count: recovery F1=0.129  pair ARI=0.031  coherence=0.805
