@@ -239,7 +239,7 @@ Validation reduced 8 raw clusters to 4 subtypes, raising spatial coherence from 
 ## References
 
 - Singhal V. et al. BANKSY unifies cell typing and tissue domain segmentation for scalable spatial omics data analysis. *Nature Genetics* 56, 431–441 (2024). https://doi.org/10.1038/s41588-024-01664-3 (code: https://github.com/prabhakarlab/Banksy_py)
-- Oliveira M. F. et al. High-definition spatial transcriptomic profiling of immune cell populations in colorectal cancer. *Nature Genetics* 57, 1512–1523 (2025). https://doi.org/10.1038/s41588-025-02193-3 (code: https://github.com/10XGenomics/HumanColonCancer_VisiumHD)
+- Oliveira M. F. et al. High-definition spatial transcriptomic profiling of immune cell populations in colorectal cancer. *Nature Genetics* 57, 1512–1523 (2025). https://doi.org/10.1038/s41588-025-02193-3 (code and dataset: https://github.com/10XGenomics/HumanColonCancer_VisiumHD)
 
 ## AI Assistance Disclosure
 
