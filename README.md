@@ -207,13 +207,13 @@ All 12 graph and weighting combinations scored 0.353 to 0.377, and the best cell
 
 ![Figure 2](figures/02_lambda_scale_sweep.png)
 
-**Figure 2. Neighbourhood weight, size and feature.** (A) Recovery F1 against $\lambda$ for the neighbour feature mean expression (blue) and cell-type composition (orange), using a radius of 32 µm and reciprocal weights. The dashed line is $\lambda = 0$. (B) Recovery F1 against neighbourhood radius at $\lambda = 0.2$ (about 8, 20, 48, 112 and 195 neighbours for 12, 20, 32, 48 and 64 µm). (C) Spatial coherence of the clusters against $\lambda$. Error bars are the seed standard deviation.
+**Figure 2. Neighbourhood weight, size and feature.** (A) Recovery F1 against $\lambda$ for the neighbour feature mean expression (blue) and cell-type composition (orange), using a radius of 32 µm and reciprocal weights. The dashed line is $\lambda = 0$. (B) Recovery F1 against neighbourhood radius at $\lambda = 0.2$ for both neighbour features (about 8, 20, 48, 112 and 195 neighbours for 12, 20, 32, 48 and 64 µm). (C) Spatial coherence of the clusters against $\lambda$. Error bars are the seed standard deviation.
 
 - **$\lambda$ saturates early.** Recovery F1 peaks at $\lambda = 0.2$ (0.377) and stays within noise of 0.34-0.36 from 0.1 to 0.9. Larger $\lambda$ mainly raises spatial coherence (0.68 to 0.93), which means smoother clusters, not closer agreement with the reference labels.
-- **Mean expression is at least as good as composition.** Composition matches it on recovery F1 at $\lambda \leq 0.2$ but its pair ARI is clearly lower at every $\lambda \geq 0.3$.
-- **Neighbourhood size matters little.** All radii fall within 0.02 of each other, with 32 µm nominally best (0.377).
+- **Mean expression is at least as good as composition.** Composition matches it on recovery F1 at $\lambda \leq 0.2$, but its pair ARI is clearly lower at every $\lambda \geq 0.3$. The two features also respond differently to neighbourhood size: expression stays above the $\lambda = 0$ baseline at every radius, while composition collapses in small neighbourhoods (about 0.18 at 12 µm and about 0.33 at 20 µm, no better than $\lambda = 0$). From 32 µm upward (about 48 or more neighbours) the two are within noise of each other.
+- **For mean expression, neighbourhood size matters little.** All radii fall within 0.02 of each other, with 32 µm nominally best (0.377). Composition needs a larger neighbourhood to work, probably because cell-type fractions computed from only a handful of neighbours are too coarse to be informative.
 
-A reasonable default is therefore about 48 neighbours (radius or kNN) with $\lambda$ between 0.1 and 0.2. That is a sensible starting point, not a demonstrated optimum.
+A reasonable default is therefore about 48 neighbours (radius or kNN) with $\lambda$ between 0.1 and 0.2. That is a sensible starting point, not a demonstrated optimum. If you use the composition option, avoid small neighbourhoods (below about 20 neighbours).
 
 ### What do the final subtypes look like?
 
