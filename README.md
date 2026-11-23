@@ -243,4 +243,4 @@ Validation reduced 8 raw clusters to 4 subtypes, raising spatial coherence from 
 
 ## AI Assistance Disclosure
 
-This project was developed with the assistance of Claude (Anthropic). Claude helped build and debug the unit tests and benchmark scripts used to validate the tool and generate the figures above. The original idea, src/ code, the choice of data and comparisons, and the review and interpretation of results are my own. 
+This project was developed with the assistance of Claude Fable 5.1 (Anthropic). Claude helped build and debug the unit tests and benchmark scripts used to validate the tool and generate the figures above. The original idea, src/ code, the choice of data and comparisons, and the review and interpretation of results are my own. 
